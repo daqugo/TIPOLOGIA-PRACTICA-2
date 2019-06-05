@@ -198,7 +198,7 @@ CLORUROS --> Existen outliers tanto en tintos como en blancos, pero sus valores 
 SULFATOS --> No existen valores anormales en esta variable, pero teniendo en cuenta que la suma de Cloruros, sulfatos y otras sales de un vino no tiene que superar el 4, eliminaremos los outliners mayores de 1
 DIOX_AZUFRE LIBRE --> Vamos a optar por eliminar aquellos tengan un valor superior a 300.Es probable que sea incorrecto. 
 DENSIDAD --> La densidad del vino habitual suele estar entre 0.98-0.999 aprox. Hay algún valor indicado como outiliers pero no son valores incorrectos porque la densidad habitual del vino dulce puede llegar hasta 1.115k, asi que podemos determinar que todos los valores son correctos.
-PH --> el PH es una medida de acidez total que presenta un vino y que está en un intervalo de 2,8 a 4, siendo 2,8 el vino más acido. En nuestro dataset, eliminaremos las muestras ,que son muy pocas por debajo de 2,8 y por encima de 4 para eliminar muestras incorrectas. 
+PH --> el PH es una medida de acidez total que presenta un vino y que presenta un maximo de 4, siendo cuanto mas alto menos acido. En nuestro dataset, eliminaremos las muestras , por encima de 4 para eliminar muestras incorrectas. 
 
 . 
 
@@ -425,41 +425,81 @@ Esta técnica consiste en comparar los cuantiles de la distribución observada con
 
 
 
-qqnorm(tinto$alcohol, pch = 19, col = "gray50", main="Distribucion del Alcohol")
+qqnorm(tinto$alcohol, pch = 19, col = "gray50", main="Distribucion del Alcohol  TINTOS")
 qqline(tinto$alcohol)
 
 
-qqnorm(tinto$acidez_fija, pch = 19, col = "gray50", main="Distribucion de la Acidez Fija")
+qqnorm(tinto$acidez_fija, pch = 19, col = "gray50", main="Distribucion de la Acidez Fija TINTOS")
 qqline(tinto$acidez_fija)
 
-qqnorm(tinto$acidez_volatil, pch = 19, col = "gray50", main="Distribucion de la Acidez Volatil")
+qqnorm(tinto$acidez_volatil, pch = 19, col = "gray50", main="Distribucion de la Acidez Volatil TINTOS")
 qqline(tinto$acidez_volatil)
 
 
-qqnorm(tinto$acido_citrico, pch = 19, col = "gray50", main="Distribucion del acido citrico")
+qqnorm(tinto$acido_citrico, pch = 19, col = "gray50", main="Distribucion del acido citrico TINTOS")
 qqline(tinto$acido_citrico) 
 
-qqnorm(tinto$azucar_residual, pch = 19, col = "gray50", main="Distribucion del Azucar residual")
+qqnorm(tinto$azucar_residual, pch = 19, col = "gray50", main="Distribucion del Azucar residual TINTOS")
 qqline(tinto$azucar_residual)
 
 
-qqnorm(tinto$cloruros, pch = 19, col = "gray50", main="Distribucion de los cloruros")
+qqnorm(tinto$cloruros, pch = 19, col = "gray50", main="Distribucion de los cloruros TINTOS")
 qqline(tinto$cloruros)
 
-qqnorm(tinto$diox_azufre_libre, pch = 19, col = "gray50", main="Distribucion del Azufre Libre")
+qqnorm(tinto$diox_azufre_libre, pch = 19, col = "gray50", main="Distribucion del Azufre Libre TINTOS")
 qqline(tinto$diox_azufre_libre)
 
-qqnorm(tinto$diox_azufre_total, pch = 19, col = "gray50", main="Distribucion del Azufre Total")
+qqnorm(tinto$diox_azufre_total, pch = 19, col = "gray50", main="Distribucion del Azufre Total TINTOS")
 qqline(tinto$diox_azufre_total)
 
-qqnorm(tinto$densidad, pch = 19, col = "gray50", main="Distribucion de la Densidad")
+qqnorm(tinto$densidad, pch = 19, col = "gray50", main="Distribucion de la Densidad TINTOS")
 qqline(tinto$densidad)
 
-qqnorm(tinto$pH, pch = 19, col = "gray50", main="Distribucion del pH")
+qqnorm(tinto$pH, pch = 19, col = "gray50", main="Distribucion del pH TINTOS")
 qqline(tinto$pH)
 
-qqnorm(tinto$sulfatos, pch = 19, col = "gray50", main="Distribucion de los sulfatos")
+qqnorm(tinto$sulfatos, pch = 19, col = "gray50", main="Distribucion de los sulfatos TINTOS")
 qqline(tinto$sulfatos)
+
+
+
+
+qqnorm(blanco$alcohol, pch = 19, col = "gray50", main="Distribucion del Alcohol  BLANCOS")
+qqline(blanco$alcohol)
+
+
+qqnorm(blanco$acidez_fija, pch = 19, col = "gray50", main="Distribucion de la Acidez Fija BLANCOS")
+qqline(blanco$acidez_fija)
+
+qqnorm(blanco$acidez_volatil, pch = 19, col = "gray50", main="Distribucion de la Acidez Volatil BLANCOS")
+qqline(blanco$acidez_volatil)
+
+
+qqnorm(blanco$acido_citrico, pch = 19, col = "gray50", main="Distribucion del acido citrico BLANCOS")
+qqline(blanco$acido_citrico) 
+
+qqnorm(blanco$azucar_residual, pch = 19, col = "gray50", main="Distribucion del Azucar residual BLANCOS")
+qqline(blanco$azucar_residual)
+
+
+qqnorm(blanco$cloruros, pch = 19, col = "gray50", main="Distribucion de los cloruros BLANCOS")
+qqline(blanco$cloruros)
+
+qqnorm(blanco$diox_azufre_libre, pch = 19, col = "gray50", main="Distribucion del Azufre Libre BLANCOS")
+qqline(blanco$diox_azufre_libre)
+
+qqnorm(blanco$diox_azufre_total, pch = 19, col = "gray50", main="Distribucion del Azufre Total BLANCOS")
+qqline(blanco$diox_azufre_total)
+
+qqnorm(blanco$densidad, pch = 19, col = "gray50", main="Distribucion de la Densidad BLANCOS")
+qqline(blanco$densidad)
+
+qqnorm(blanco$pH, pch = 19, col = "gray50", main="Distribucion del pH BLANCOS")
+qqline(blanco$pH)
+
+qqnorm(blanco$sulfatos, pch = 19, col = "gray50", main="Distribucion de los sulfatos BLANCOS")
+qqline(blanco$sulfatos)
+
 
 ```
 
