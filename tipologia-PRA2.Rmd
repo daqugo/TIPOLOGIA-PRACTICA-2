@@ -1,0 +1,698 @@
+---
+title: 'Tipología y ciclo de vida de los datos: PRA2'
+author: "Autor: Iván López-Baltasar Benito | David Quiles Gómez"
+date: "Junio 2019"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+  pdf_document:
+    highlight: zenburn
+    latex_engine: xelatex
+    toc: yes
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+******
+# Introducción
+******
+## Presentación
+
+En esta actividad se elabora un caso práctico, consistente en el tratamiento de un conjunto de datos (en inglés, dataset), orientado a aprender a identificar los datos relevantes para un proyecto analítico y usar las herramientas de integración, limpieza, validación y análisis de las mismas.
+
+
+## Objetivos
+
+* Aprender a aplicar los conocimientos adquiridos y su capacidad de resolución de problemas en entornos nuevos o poco conocidos dentro de contextos más amplios o multidisciplinares.  
+* Saber identificar los datos relevantes y los tratamientos necesarios (integración, limpieza y validación) para llevar a cabo un proyecto analítico.  
+* Aprender a analizar los datos adecuadamente para abordar la información contenida en los datos.
+* Identificar la mejor representación de los resultados para aportar conclusiones sobre el problema planteado en el proceso analítico.  
+* Actuar con los principios éticos y legales relacionados con la manipulación de datos en función del ámbito de aplicación.  
+* Desarrollar las habilidades de aprendizaje que les permitan continuar estudiando de un modo que tendrá que ser en gran medida autodirigido o autónomo.  
+* Desarrollar la capacidad de búsqueda, gestión y uso de información y recursos en el ámbito de la ciencia de datos.
+ 
+## Competencias
+* Capacidad de analizar un problema en el nivel de abstracción adecuado a cada situación y aplicar las habilidades y conocimientos adquiridos para abordarlo y resolverlo.
+* Capacidad para aplicar las técnicas específicas de tratamiento de datos (integración, transformación, limpieza y validación) para su posterior análisis  
+
+## Descripcion del dataset 
+En ésta práctica vamos a trabajar con el juego de datos de https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/ el cual contiene dos datasets, uno de vinos blancos y otro de vinos tintos. 
+
+Ambos datasets contienen 11 atributos de entrada, correspondientes a pruebas fisioquímicas, y uno de salida: "quality". 
+
+El objetivo del análisis será por un lado construir un modelo que nos pueda predecir la calidad de un vino, y por otro, construir un modelo que nos permita clasificar un vino en un determinado tipo (blanco/tinto).
+
+
+******
+# Carga y limpieza del dataset
+******
+
+Cargamos los paquetes R que vamos a usar
+```{r message= FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+```{r message= FALSE, warning=FALSE}
+blanco<-read.csv("vinos/winequality-white.csv", header=T, sep=";")
+tinto<-read.csv("vinos/winequality-red.csv", header=T, sep=";")
+
+```
+
+Vamos a añadirle la clase a cada juego de datos para después unir ambos datasets.
+```{r message= FALSE, warning=FALSE}
+blanco$tipo<-'B'
+tinto$tipo<-'T'
+
+nomCols <- c("acidez_fija", "acidez_volatil", "acido_citrico", "azucar_residual", "cloruros","diox_azufre_libre","diox_azufre_total","densidad","pH","sulfatos", "alcohol","calidad", "tipo")
+
+colnames(blanco) <- nomCols
+colnames(tinto) <- nomCols
+
+#str(blanco)
+summary(blanco)
+
+
+#str(tinto)
+summary(tinto)
+```
+
+
+
+
+
+Ahora unimos ambos datasets
+```{r message= FALSE, warning=FALSE}
+# Unimos los dos juetos de datos en uno solo
+totalData <- bind_rows(blanco,tinto)
+filas=dim(totalData)[1]
+
+# Factorizamos la variable tipo
+totalData$tipo <- as.factor(totalData$tipo)
+
+str(totalData)
+summary(totalData)
+```
+
+
+
+## Nulos y/o elementos vacíos
+Comprobamos que no haya valores vacíos o nulos.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Estad??ssticas de valores vacios
+colSums(is.na(totalData))
+colSums(totalData=="")
+```
+
+Podemos ver como tenemos algunos valores a cero, en el atributo acido_citrico que además está presente tanto en los vinos tintos como en los blancos. Vamos a obtener cuantos valores a 0 tenemos y consultar con una fuente externa  (https://www.aprenderdevino.es/acidos-acidez-vino/) si este valor representa un error o es un valor correcto.  
+
+```{r contar nulos}
+
+a <- sum(blanco$acido_citrico==0)
+b <- sum(tinto$acido_citrico==0)
+sprintf("Número de muestras de vinos blancos con el ácido cítrico = 0 : %s",a)
+sprintf("Número de muestras de vinos tintos con el ácido cítrico = 0 : %s",b)
+
+```
+
+Según la fuente externa consultada, los niveles habituales de acido cítrico en los vinos oscila entre 0 y 0,5. Este acido es otro más que está presente en gran cantidad de vinos pero no es extraño que el valor sea cero o que también esté por encima de 0.5, por tanto consideramos los valores como correctos.
+
+## Valores extremos
+
+Vamos a realizar el análisis de cada una de las variables cualitativas del dataset. Para determinar si los outliers son valores correctos o no, nos apoyaremos en algunas fuentes externas que nos ayudarán a eliminar aquellos valores que concluyamos que no son correctos. 
+
+Comenzamos por realizar un gráfico **boxplot** para cada tipo de vino y variable. 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Comprobamos outliers de las variables de los vinos blancos
+#ggplot(totalData, aes(x=tipo, y=diox_azufre_total)) +  geom_point(size=2, shape=23)
+par(mfrow = c(2,2))
+datos.bp <-boxplot(blanco$diox_azufre_total, main="Blancos - Dioxido azufre total", horizontal = T)
+
+datos.bp <-boxplot(blanco$acidez_fija, main="Blancos - Acidez Fija", horizontal = T)
+
+datos.bp <-boxplot(blanco$acidez_volatil, main="Blancos - Acidez Volatil", horizontal = T)
+datos.bp <-boxplot(blanco$acido_citrico, main="Blancos - Acido cítrico", horizontal = T)
+
+datos.bp <-boxplot(blanco$azucar_residual, main="Blancos - Azucar residual", horizontal = T)
+datos.bp <-boxplot(blanco$cloruros, main="Blancos - Cloruros", horizontal = T)
+
+datos.bp <-boxplot(blanco$diox_azufre_libre, main="Blancos - Azufre Libre", horizontal = T)
+datos.bp <-boxplot(blanco$densidad, main="Blancos - Densidad", horizontal = T)
+datos.bp <-boxplot(blanco$sulfatos, main="Blancos - Sulfatos", horizontal = T)
+datos.bp <-boxplot(blanco$pH, main="Blancos - pH", horizontal = T)
+datos.bp <-boxplot(blanco$alcohol, main="Blancos - Alcohol", horizontal = T)
+```
+
+Seguidamente, hacemos el mismo ejercicio para observar los outliers de los vinos tintos:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+par(mfrow = c(2,2))
+datos.bp <-boxplot(tinto$diox_azufre_total, main="Tintos - Dioxido azufre total", horizontal = T)
+datos.bp <-boxplot(tinto$acidez_fija, main="Tintos - Acidez Fija", horizontal = T)
+datos.bp <-boxplot(tinto$acidez_volatil, main="Tintos - Acidez Volatil", horizontal = T)
+datos.bp <-boxplot(tinto$acido_citrico, main="Tintos - Acido cítrico", horizontal = T)
+
+datos.bp <-boxplot(tinto$azucar_residual, main="Tintos - Azucar residual", horizontal = T)
+datos.bp <-boxplot(tinto$cloruros, main="Tintos - Cloruros", horizontal = T)
+datos.bp <-boxplot(tinto$diox_azufre_libre, main="Tintos - Azufre Libre", horizontal = T)
+datos.bp <-boxplot(tinto$densidad, main="Tintos - Densidad", horizontal = T)
+datos.bp <-boxplot(tinto$sulfatos, main="Tintos - Sulfatos", horizontal = T)
+datos.bp <-boxplot(tinto$pH, main="Tintos - pH", horizontal = T)
+datos.bp <-boxplot(tinto$alcohol, main="Tintos - Alcohol", horizontal = T)
+
+```
+
+A modo de ejemplo, se muestran los outliers de dos variables:  
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+cat("OUTLIERS de la variable dióxido de azufre total en VINOS BLANCOS")
+boxplot.stats(blanco$diox_azufre_total)$out
+cat("OUTLIERS de la variable dióxido de azufre total en VINOS TINTOS")
+boxplot.stats(tinto$diox_azufre_total)$out
+write("  ")
+
+cat("OUTLIERS de la variable ácido cítrico en VINOS BLANCOS")
+boxplot.stats(blanco$acido_citrico)$out
+cat("OUTLIERS de la variable ácido cítrico en VINOS TINTOS")
+boxplot.stats(tinto$acido_citrico)$out
+
+```
+
+
+Como se puede ver en los boxplots, en casi todas las variables, el sistema detecta valores atipicos. Al no tener un conocimiento suficiente como para valorar si se deben a algún error, al uso diferentes metodologias de medicion o o si por el contrario, son valores correctos, consultaremos fuentes externas que nos ayudarán en esta fase de limpieza de datos y que son referenciadas al final de este apartado.  
+
+Analizadas las graficas y consultadas las fuentes, de la muestra total podemos concluir que:  
+
+**Dióxido de azufre total**: Eliminamos del conjunto de datos aquellas muestras que tienen un valor > 400 y es blanco y de la de tintos los dos que tienen un valor superior a 250.  
+**Acidez fija**: Eliminaremos del conjunto tanto de vinos como de blancos los valores mayores de 12 que están muy alejados del rango intercuartilico y podria ser incorrecto.   
+**Acidez volátil**: La acidez volátil es crítica para la calidad de vino. Una acidez por encima de 1, nos dará un vino de pésima calidad, es probable también que el dato no sea correcto.    
+**Ácido cítrico**:  Existen dos blancos que tienen esta variabale por encima de 1. Es muy raro que este presente en estas cantidades en los vinos. Los sacaremos del dataset.  
+**Azúcar residual**: Los valores habituales de los vinos oscilan entre 1 gr y 200 gr por litro de vino. Todos nuestros vinos están dentro de ese rango y por lo tanto los outilers son correctos. Los vinos dulces presentan un alto nivel de azúcar dentro de los valores indicados en las graficas. NO eliminaremos ninguna muestra.  
+**Cloruros**: Existen outliers tanto en tintos como en blancos, pero sus valores se consideran normales y no representan ningun error por lo que no eliminaremos ningun valor.   
+**Sulfatos**: No existen valores anormales en esta variable.  
+**Dióxido de azufre libre**: Vamos a optar por eliminar aquellos tengan un valor superior a 300. Es probable que sea incorrecto.   
+**Densidad**: La densidad del vino habitual suele estar entre 0.98-0.999 aprox. Hay algún valor indicado como outliers pero no son valores incorrectos porque la densidad habitual del vino dulce puede llegar hasta 1.115k, asi que podemos determinar que todos los valores son correctos.
+**pH**: El PH es una medida de acidez total que presenta un vino y que presenta un maximo de 4, siendo cuanto más alto menos acido. En nuestro dataset, eliminaremos las muestras por encima de 4 para eliminar muestras incorrectas. 
+
+
+      FUENTES CONSULTADAS:
+      
+      https://www.catadelvino.com/blog-cata-vino  
+      https://foro.e-nologia.com/thread-37415-page-1.html  
+      http://www.usc.es/caa/MetAnalisisStgo1/enologia.pdf  
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+blanco <-subset(blanco, diox_azufre_total<400)
+tinto <-subset(tinto, diox_azufre_total<250)
+
+blanco <-subset(blanco, acidez_fija<=12)
+tinto <-subset(tinto, acidez_fija<=12)
+
+blanco <-subset(blanco, acidez_volatil<1)
+tinto <-subset(tinto, acidez_volatil<1)
+
+blanco<-subset(blanco, acido_citrico<1)
+tinto<-subset(tinto, acido_citrico<1)
+
+blanco<-subset(blanco, diox_azufre_total<300)
+tinto<-subset(tinto, diox_azufre_total<300)
+
+blanco<-subset(blanco, pH<4)
+tinto<-subset(tinto, pH<4)
+
+# , pero teniendo en cuenta que la suma de Cloruros, sulfatos y otras sales de un vino no tiene que superar el 4, eliminaremos los outliners mayores de 1. DAVID, si no hay outliers no tiene porqué eliminarse ningún registro. Esa regla de la suma servirá al productor para descartar el vino, pero no afecta a nuestro estudio 
+#blanco<-subset(blanco, sulfatos<1)
+#tinto<-subset(tinto, sulfatos<1)
+
+```
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+#unir ambos datasets
+totalData <- bind_rows(blanco,tinto)
+
+# Factorizamos la variable tipo
+totalData$tipo <- as.factor(totalData$tipo)
+
+```
+
+
+Mostramos de los gráficos de dispersión una vez hemos eliminado los outliers.  
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+par(mfrow = c(1,1))
+p1<-ggplot(totalData, aes(x=tipo, y=diox_azufre_total)) + geom_point(size=2, shape=23)
+p2<-ggplot(totalData, aes(x=tipo, y=acidez_fija)) + geom_point(size=2, shape=23, color="blue")
+p3<-ggplot(totalData, aes(x=tipo, y=acidez_volatil)) + geom_point(size=2, shape=23, color= "red")
+p4<-ggplot(totalData, aes(x=tipo, y=acido_citrico)) + geom_point(size=2, shape=23, color ="magenta")
+
+gridExtra::grid.arrange(p1, p2,p3,p4, nrow = 2)
+
+```
+
+# Análisis de los datos
+
+## Análisis descriptivo de la calidad
+
+A continuación vamos a realizar un análisis descriptivo de la  variable calidad.  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(totalData$calidad)
+#desviacion estandara
+sd(totalData$calidad)
+
+# mostramos un histograma de la calidad
+filas=dim(totalData)
+p1<-ggplot(data = totalData[1:filas,],aes(x=calidad))+geom_histogram()+ geom_density(alpha=.2, fill="#FF6666") 
+
+# Relacion entre calidad y tipo de vino
+p2<-ggplot(data=totalData[1:filas,],aes(x=calidad,fill=tipo))+geom_bar()
+
+# Grafico de frecuencias
+p3<-ggplot(data = totalData[1:filas,],aes(x=calidad,fill=tipo))+geom_bar(position="fill")+ylab("Frecuencia")
+
+gridExtra::grid.arrange(p1, p2,p3,nrow = 2)
+```
+
+Se puede deducir de los gráficos que los vinos blancos de la muestra tienen más calidad que los tintos.  
+
+
+
+## Análisis de la normalidad y homogeneidad de la varianza
+
+Vamos a comprobar la normalidad en ambos grupos de vinos para cada una de la variables numéricas de nuestro dataset. Utilizaremos el tests de **Kolmogorov-Smirnov** y **Shapiro-Wilk**. 
+
+```{r message= FALSE, warning=FALSE}
+##
+col.names = colnames(tinto)
+alpha <- 0.05
+
+for (i in 1:ncol(tinto)){
+  if (i == 1) {cat("Variables que siguen una distribución normal en el grupo de vinos tintos:")}
+  
+  if (is.integer(tinto[,i]) | is.numeric(tinto[,i])){
+    p_val = ks.test(tinto[,i], pnorm, mean(tinto[,i]), sd(tinto[,i]))$p.value
+    if (p_val >= alpha){
+      cat(col.names[i])
+      #formatear la salida
+      if (i< ncol(tinto) -1){cat(" ,")}
+      if (i %% 3 == 0){cat("\n")}
+    }
+    p_val = shapiro.test(tinto[,i])$p.value
+    if (p_val >= alpha){
+      cat(col.names[i])
+      #formatear la salida
+      if (i< ncol(tinto) -1){cat(" ,")}
+      if (i %% 3 == 0){cat("\n")}
+    }
+  }
+}
+
+for (i in 1:ncol(tinto)){
+  if (i == 1) {cat("Variables que siguen una distribución normal en el grupo de vinos blancos:")}
+  if (is.integer(blanco[,i]) | is.numeric(blanco[,i])){
+    p_val = ks.test(blanco[,i], pnorm, mean(blanco[,i]), sd(blanco[,i]))$p.value
+    if (p_val >= alpha){
+      cat(col.names[i])
+      #formatear la salida
+      if (i< ncol(blanco) -1){cat(" ,")}
+      if (i %% 3 == 0){cat("\n")}
+    }
+    p_val = shapiro.test(blanco[,i])$p.value
+    if (p_val >= alpha){
+      cat(col.names[i])
+      #formatear la salida
+      if (i< ncol(tinto) -1){cat(" ,")}
+      if (i %% 3 == 0){cat("\n")}
+    }
+  }
+}
+
+
+```
+
+Comprobamos que debemos rechazar la hipótesis nula en todas las variables de ambos grupos de vinos. No obstante, por el **teorema central del límite** se podria considerar que los datos siguen una distribución normal.
+
+
+Analizaremos la homocedasticidad de la varianza de la variable calidad mediante el **test de Flinger-Killen** en para el conjunto total de vinos.  
+
+```{r message= FALSE, warning=FALSE}
+##
+#b <- blanco$calidad
+#t <- tinto$calidad
+fligner.test(calidad ~ tipo, data= totalData)
+```
+Dado que el p-valor es > 0.05 podemos aceptar la hipóstesis nula de que las varianzas de ambas muestras son homogéneas.
+
+
+Vamos ahora a considerar la Calidad como una variable categórica y a comprobar la homogeneidad de la varianza del resto de variables cuando agrupamos las muestras por Calidad. 
+
+Dado que hemos comprobado que ninguna variable se distribuye con una Normal, aplicaremos el test de **Kruskal-Wallis** para comprobar si alguna variable presenta diferencias significativas en función de la calidad.
+
+```{r message= FALSE, warning=FALSE}
+
+##
+totalData2<-totalData
+
+totalData2$calidadFactor<-totalData2$calidad
+totalData2$calidadFactor <- as.factor(totalData2$calidadFactor)
+
+#aplicamos test Kruskal-Wallis
+matriz <-matrix(nc=2, nr=0)
+colnames(matriz) <- c( "variable","p-value")
+for (i in 1:(ncol(totalData2)-3)){
+  if (is.integer(totalData2[,i]) | is.numeric(totalData2[,i])){
+    kruskal.test = kruskal.test(totalData2[,i] ~ totalData2$calidadFactor, data=totalData2)
+    p_val = kruskal.test$p.value
+    
+    tupla = matrix(ncol=2,nrow=1)
+    tupla[1][1]=colnames(totalData2)[i]
+    tupla[2][1]=p_val
+    matriz <- rbind(matriz, tupla)
+    
+  }
+}
+print(matriz)
+
+```
+
+Comprobamos como ninguna variable presenta un *p-value > 0.05*, con lo que debemos rechazar la hipótesis nula de homocedasticidad, por tanto todas las variables presentan varianzas estadisticamente diferentes para los diferentes grupos de calidad.
+
+
+# Pruebas estadísticas
+
+## ¿Que tipo de vino tiene más calidad?
+
+En los histogramas y gráficos de frecuencias pudimos observar que la calidad de los vinos blancos de la muestra era más alta que la de los tintos, vamos a realizar un contraste de hipótesis para comprobar si tenemos diferencias estadísticamente significativas en la media de la calidad de ambos grupos de vinos.
+
+Considerando el análisis de la normalidad y homogeneidad de la varianza del punto anterior, aplicaremos la prueba **t de Student** formulando las siguientes hipótesis: 
+
+      H0: µB - µT = 0
+      H1: µB - µT > 0
+
+donde µB es la media muestral de la calidad de los vinos blancos y µT es la media muestral de la calidad de los vinos tintos.
+
+```{r message= FALSE, warning=FALSE}
+## Realizamos el test por tipo de vino
+t.test(calidad ~ tipo, data = totalData, alternative="greater")
+
+```
+Dado que el p-valor es inferior al nivel de significancia (0.05), debemos rechazar la hipótesis nula, por tanto podemos concluir que efectivamente, la calidad de los vinos blancos es superior que la de los vinos tintos de la muestra.
+
+
+## ¿Qué prueba fisioquímica es más determinante para la calidad de un vino?
+
+Vamos a calcular la matriz de correlaciones de las variables cuantitativas de cada grupo de vinos para determinar cuáles de ellas ejercen una mayor influencia sobre la calidad. Mediremos el coeficiente de correlación de **Spearman**.
+
+```{r message= FALSE, warning=FALSE}
+library(rminer)
+set.seed(123)
+#TINTOS
+tintoQ<-tinto[,-13]
+matriz_corr <-matrix(nc=2, nr=0)
+colnames(matriz_corr) <- c("estimate", "p-value")
+for (i in 1:(ncol(tintoQ)-1)){
+  if (is.integer(tintoQ[,i]) | is.numeric(tintoQ[,i])){
+    spearman.test = cor.test(tintoQ[,i], tintoQ$calidad,method = "spearman")
+    coeficiente_corr = spearman.test$estimate
+    p_val = spearman.test$p.value
+    
+    tupla = matrix(ncol=2,nrow=1)
+    tupla[1][1]=coeficiente_corr
+    tupla[2][1]=p_val
+    matriz_corr <- rbind(matriz_corr, tupla)
+    rownames(matriz_corr)[nrow(matriz_corr)]<-colnames(tintoQ)[i]
+  }
+}
+cat("Matriz de correlaciones en el grupo de vinos TINTO")
+print(matriz_corr)
+
+#BLANCOS
+blancoQ<-blanco[,-13]
+matriz_corr <-matrix(nc=2, nr=0)
+colnames(matriz_corr) <- c("estimate", "p-value")
+for (i in 1:(ncol(blancoQ)-1)){
+  if (is.integer(blancoQ[,i]) | is.numeric(blancoQ[,i])){
+    spearman.test = cor.test(blancoQ[,i], blancoQ$calidad,method = "spearman")
+    coeficiente_corr = spearman.test$estimate
+    p_val = spearman.test$p.value
+    
+    tupla = matrix(ncol=2,nrow=1)
+    tupla[1][1]=coeficiente_corr
+    tupla[2][1]=p_val
+    matriz_corr <- rbind(matriz_corr, tupla)
+    rownames(matriz_corr)[nrow(matriz_corr)]<-colnames(blancoQ)[i]
+  }
+}
+cat("Matriz de correlaciones en el grupo de vinos BLANCO")
+print(matriz_corr)
+
+#TOTAL
+matriz_corr <-matrix(nc=2, nr=0)
+colnames(matriz_corr) <- c("estimate", "p-value")
+for (i in 1:(ncol(totalData)-2)){
+  if (is.integer(totalData[,i]) | is.numeric(totalData[,i])){
+    spearman.test = cor.test(totalData[,i], totalData$calidad,method = "spearman")
+    coeficiente_corr = spearman.test$estimate
+    p_val = spearman.test$p.value
+    
+    tupla = matrix(ncol=2,nrow=1)
+    tupla[1][1]=coeficiente_corr
+    tupla[2][1]=p_val
+    matriz_corr <- rbind(matriz_corr, tupla)
+    rownames(matriz_corr)[nrow(matriz_corr)]<-colnames(totalData)[i]
+  }
+}
+cat("Matriz de correlaciones en el conjunto de vinos")
+print(matriz_corr)
+
+```
+
+Vemos que las correlaciones son bajas, que presentan bastantes diferencias entre los distintos grupos de vinos y generalmente están más fuertemente correladas en el grupo de vinos tinto por lo que seguramente funcione mejor un modelo de regresión lineal en dicho tipo de vinos.
+
+## Regresión lineal
+
+Vamos a intentar encontrar un modelo de regresión lineal que nos permita inferir la calidad de un vino a partir de ciertas características fisioquímicas.
+
+Probaremos varios modelos utilizando la información obtenida en el punto 4.2
+
+### Regresión lineal para el conjunto total de vinos.  
+
+En primer lugar estudiamos un modelo de regresión para el conjunto total de vinos, utilizaremos el método de exclusión o *holdout* con partición de datos estratificada para clasificar los datos originales en entrenamiento y test.  
+```{r message= FALSE, warning=FALSE}
+h <- holdout(totalData$calidad,ratio=2/3,mode="stratified")
+training <- totalData[h$tr,]
+test <- totalData[h$ts,]
+
+modelo1 <- lm(calidad ~ ., data = training)
+modelo2 <- lm(calidad ~ alcohol+densidad+cloruros+acidez_volatil+azucar_residual, data = training)
+modelo3 <- lm(calidad ~ tipo+alcohol+densidad+cloruros+acidez_volatil+azucar_residual, data = training)
+modelo4 <- lm(calidad ~ alcohol, data = training)
+tabla.coeficientes <-matrix(c(1,summary(modelo1)$r.squared, 
+                              2, summary(modelo2)$r.squared,
+                              3, summary(modelo3)$r.squared,
+                              4, summary(modelo4)$r.squared),
+                            ncol=2,byrow=TRUE)
+colnames(tabla.coeficientes)<-c("Modelo", "R^2")
+tabla.coeficientes
+```
+
+El modelo que tiene el R2 más alto es el primero, el que contiene todas las variables, vamos a aplicar una seleccion de predictores empleando *stepwise selection*
+```{r message= FALSE, warning=FALSE}
+step(modelo1, direction = "both",trace=0)
+```
+
+La selección de predictores ha identificado como mejor modelo el formado por las variables acidez_fija, acidez_volatil, azucar_residual, cloruros, diox_azufre_libre, diox_azufre_total, densidad, pH, sulfatos, alcohol y tipo. Ha eliminado del modelo el ácido cítrico. Vamos a generar el nuevo modelo
+
+```{r message= FALSE, warning=FALSE}
+modelo1 <- lm(formula = calidad ~ acidez_fija + acidez_volatil + azucar_residual + 
+     cloruros + diox_azufre_libre + diox_azufre_total + densidad + 
+     pH + sulfatos + alcohol + tipo, data = training)
+summary(modelo1)
+```
+
+Comprobamos como el coeficiente R2 es prácticamente idéntico y hemos reducido la dimensionalidad. Vamos a verificar su precisión calculando la media de los cuadrados de las desviaciones.
+
+```{r message= FALSE, warning=FALSE}
+# funcion que calcula la media de los cuadrados de las desviaciones 
+dm <- function(actual, predicted){
+  mean((actual - predicted)^2)
+}
+
+# MSE empleando las observaciones de entrenamiento
+training_mse <- dm(modelo1$fitted.values, training$calidad)
+
+# MSE empleando nuevas observaciones
+predicciones <- predict(modelo1, newdata = test)
+test_mse <- dm(predicciones, test$calidad)
+
+sprintf("MSE de la muestra de entrenamiento (total): %s", training_mse)
+sprintf("MSE de la muestra de test (total): %s", test_mse)
+
+```
+
+### Regresión lineal para el conjunto  de vinos tintos. 
+
+Ahora vamos a repetir el proceso para el grupo de vinos tinto, probando el modelo con todas las variables y con las variables más correladas con respecto a la calidad obtenidas en el punto 4.2.  
+
+```{r message= FALSE, warning=FALSE}
+h <- holdout(tintoQ$calidad,ratio=2/3,mode="stratified")
+training <- tintoQ[h$tr,]
+test <- tintoQ[h$ts,]
+
+modelo1 <- lm(calidad ~ ., data = training)
+modelo2 <- lm(calidad ~ acidez_fija+acidez_volatil+acido_citrico+ cloruros+diox_azufre_total+densidad+sulfatos+alcohol, data = training)
+tabla.coeficientes <-matrix(c(1,summary(modelo1)$r.squared, 
+                              2, summary(modelo2)$r.squared),
+                            ncol=2,byrow=TRUE)
+colnames(tabla.coeficientes)<-c("Modelo", "R^2")
+tabla.coeficientes
+```
+
+El modelo que tiene el R2 más alto es el primero, el que contiene todas las variables, aplicamos también una selección de predictores.
+
+```{r message= FALSE, warning=FALSE}
+step(modelo1, direction = "both",trace=0)
+```
+
+
+```{r message= FALSE, warning=FALSE}
+modelo1<-lm(formula = calidad ~ acidez_fija + acidez_volatil + cloruros +  diox_azufre_libre + diox_azufre_total + densidad + sulfatos + 
+   alcohol, data = training)
+summary(modelo1)
+
+```
+
+En este caso comprobamos que el R2 es un poco peor, vamos a verificar su precisión calculando la media de los cuadrados de las desviaciones.
+
+
+```{r message= FALSE, warning=FALSE}
+# MSE empleando las observaciones de entrenamiento
+training_mse <- dm(modelo1$fitted.values, training$calidad)
+
+# MSE empleando nuevas observaciones
+predicciones <- predict(modelo1, newdata = test)
+test_mse <- dm(predicciones, test$calidad)
+
+sprintf("MSE de la muestra de entrenamiento (Tintos): %s", training_mse)
+sprintf("MSE de la muestra de test (Tintos): %s", test_mse)
+
+```
+
+### Regresión lineal para el conjunto  de vinos blancos. 
+
+Por último repetimos el proceso para el grupo de vinos blanco, probando el modelo con todas las variables y con las variables más correladas con respecto a la calidad obtenidas en el punto 4.2.  
+
+```{r message= FALSE, warning=FALSE}
+h <- holdout(blancoQ$calidad,ratio=2/3,mode="stratified")
+training <- blancoQ[h$tr,]
+test <- blancoQ[h$ts,]
+
+modelo1 <- lm(calidad ~ ., data = training)
+modelo2 <- lm(calidad ~ acidez_volatil+ cloruros+diox_azufre_total+densidad+pH+alcohol, data = training)
+tabla.coeficientes <-matrix(c(1,summary(modelo1)$r.squared, 
+                              2, summary(modelo2)$r.squared),
+                            ncol=2,byrow=TRUE)
+colnames(tabla.coeficientes)<-c("Modelo", "R^2")
+tabla.coeficientes
+```
+
+El modelo que tiene el R2 más alto es el primero, el que contiene todas las variables, aplicamos la selección de predictores.
+
+```{r message= FALSE, warning=FALSE}
+step(modelo1, direction = "both",trace=0)
+```
+
+```{r message= FALSE, warning=FALSE}
+modelo1<-lm(formula = calidad ~ acidez_fija + acidez_volatil + azucar_residual +
+     cloruros + diox_azufre_libre + densidad + pH + sulfatos + 
+     alcohol, data = training)
+summary(modelo1)
+
+```
+
+En este caso tampoco mejora el modelo con la selección de predictores, aunque al igual que en las pruebas anteriores, se ha reducido la dimensionalidad sin perder calidad en el modelo. 
+
+Verificamos su precisión calculando la media de los cuadrados de las desviaciones.
+
+```{r message= FALSE, warning=FALSE}
+# MSE empleando las observaciones de entrenamiento
+training_mse <- dm(modelo1$fitted.values, training$calidad)
+
+# MSE empleando nuevas observaciones
+predicciones <- predict(modelo1, newdata = test)
+test_mse <- dm(predicciones, test$calidad)
+
+sprintf("MSE de la muestra de entrenamiento (Blancos): %s", training_mse)
+sprintf("MSE de la muestra de test (Blancos): %s", test_mse)
+
+```
+
+Como habíamos podido intuir viendo las matrices de correlaciones de las variables con respecto a la calidad del punto 4.2, el mejor modelo lo hemos obtenido con el grupo de vinos tinto pero al no estar fuertemente correladas, la precisión del modelo no es buena.
+
+## Modelos de clasificación.
+### Random forest
+
+A continuación vamos a aplicar un método de clasificación random forest mediante una validación cruzada con 4 folds para clasificar los vinos en tintos o blancos.
+
+```{r message= FALSE, warning=FALSE}
+library(caret)
+
+
+h <- holdout(totalData$tipo,ratio=2/3,mode="stratified")
+vino_entrenamiento <- totalData[h$tr,]
+vino_prueba <- totalData[h$ts,]
+
+train_control <-trainControl(method = "cv", number = 4)
+mod<-train(tipo~., data=vino_entrenamiento, method="rf",trControl=train_control)
+pred <- predict(mod, newdata=vino_prueba)
+```
+
+Obtenemos la matriz de confusión para comprobar la bondad del modelo.  
+```{r message= FALSE, warning=FALSE}
+confusionMatrix(pred,vino_prueba$tipo)
+```
+
+Vemos que el resultado es excelente, el modelo nos clasifica los vinos con una precisión del 99.45% con un índice **kappa=0.985**   que nos indica que nuestra clasificación es un 98.5% mejor que una clasificación aleatoria.  
+
+
+
+### Arbol de clasificacion para calidad
+
+Vamos ahora a considerar la calidad como una variable categórica y a utilizar un modelo de clasificación.  
+```{r message= FALSE, warning=FALSE}
+totalData$calidad <- as.factor(totalData$calidad)
+h <- holdout(totalData$calidad,ratio=2/3,mode="stratified")
+vino_entrenamiento <- totalData[h$tr,]
+vino_prueba <- totalData[h$ts,]
+
+train_control <-trainControl(method = "repeatedcv", number = 4)
+mod<-train(calidad ~., data=vino_entrenamiento, method="rf",trControl=train_control)
+pred <- predict(mod, newdata=vino_prueba)
+```
+
+Obtenemos la matriz de confusión para comprobar la bondad del modelo.  
+```{r message= FALSE, warning=FALSE}
+confusionMatrix(pred,vino_prueba$calidad)
+```
+
+Tal y como sucedía con el modelo de regresión lineal, el modelo random forest no nos da una precisión muy alta (67.07%) clasificando por calidad.
+
+
+# Conclusiones
+Se han realizado varias pruebas estadísticas con el objetivo de inferir la calidad de los vinos y de clasificarlos por tipo Tinto y Blanco tal y como se había planteado al principio. No hemos conseguido ningún modelo que nos permita inferir la calidad con mucha precisión aunque sí clasificar los vinos por tipo.
+
+De los análisis realizados también se ha podido concluir que los vinos que pertenecen al tipo de vinos blanco tienen más calidad que las de los vinos tintos.
+
+
